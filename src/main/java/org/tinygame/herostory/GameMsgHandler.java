@@ -9,9 +9,14 @@ import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import org.tinygame.herostory.msg.GameMsgProtocol;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class GameMsgHandler extends SimpleChannelInboundHandler<Object> {
 
     static private final ChannelGroup channelGroup = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+
+    static private  final Map<Integer,User> userMap = new HashMap<>();
 
     @Override
     public void channelActive(ChannelHandlerContext ctx)throws Exception{
@@ -31,8 +36,28 @@ public class GameMsgHandler extends SimpleChannelInboundHandler<Object> {
             resultBuilder.setUserId(userId);
             resultBuilder.setHeroAvatar(heroAvatar);
 
+            User newUser = new User();
+            newUser.userId = userId;
+            newUser.heroAvatar = heroAvatar;
+            userMap.put(newUser.userId,newUser);
+
+
             GameMsgProtocol.UserEntryResult newResult = resultBuilder.build();
             channelGroup.writeAndFlush(newResult);
+        }else if(msg instanceof  GameMsgProtocol.WhoElseIsHereCmd){
+            GameMsgProtocol.WhoElseIsHereResult.Builder resultBuilder = GameMsgProtocol.WhoElseIsHereResult.newBuilder();
+            for(User currUser:userMap.values()){
+                GameMsgProtocol.WhoElseIsHereResult.UserInfo.Builder userInfoBuilder
+                        =  GameMsgProtocol.WhoElseIsHereResult.UserInfo.newBuilder();
+                userInfoBuilder.setUserId(currUser.userId);
+                userInfoBuilder.setHeroAvatar(currUser.heroAvatar);
+
+                resultBuilder.addUserInfo(userInfoBuilder);
+
+            }
+
+            GameMsgProtocol.WhoElseIsHereResult newResult = resultBuilder.build();
+            channelHandlerContext.writeAndFlush(newResult);
         }
 
     }
